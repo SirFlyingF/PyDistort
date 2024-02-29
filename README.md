@@ -14,6 +14,13 @@ PyDistort is currently under development
 
 **File Format** : Only supports 44.1kHz .wav files....at the moment
 
+## Performance
+![Loss vs epoch - TCN with ESR+DC Loss][TCN_Wright_Loss]
+![Test and Predicted waveform - TCN with ESR+DC Loss][TCN_Wright_Pred]
+
+![Loss vs epoch - TCN with Spectral Loss][TCN_Steinmetz_Loss]
+![Test and Predicted waveform - TCN with Spectral Loss][TCN_Steinmetz_Pred]
+
 ## Future and Contribution
 
 I plan to provide a GA based Hyperparam tuning. Probably overkill but Its for my learning
@@ -21,3 +28,9 @@ I plan to provide a GA based Hyperparam tuning. Probably overkill but Its for my
 I do plan to provide this as a package that can be trained for customer patches. Although LSTMs take too long to train. So Good Luck.
 
 Contribution : Submit your PRs and I'll merge them if I like it, Or feel free to fork the repo. 
+
+
+[TCN_Wright_Loss]: Performance/TCN_Wright_Loss.png
+[TCN_Wright_Pred]: Performance/TCN_Wright_Pred.png
+[TCN_Steinmetz_Loss]: Performance/TCN_Steinmetz_Loss.png
+[TCN_Steinmetz_Pred]: Performance/TCN_Steinmetz_Pred.png
