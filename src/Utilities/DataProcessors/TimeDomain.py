@@ -63,7 +63,6 @@ class TimeDomain():
     def save(self, filepath, data):
         try:
             write(join(self.DATA_DIR, filepath), self.RATE, data)
+            print('Saved!')
         except:
             print('Unable to save file to disk')
-        finally:
-            print('Saved!')

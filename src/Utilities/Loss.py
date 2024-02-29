@@ -2,59 +2,85 @@
     This file contains loss function as used in Wright et al, and Steinmetz et al
     See Related-Research-Papers folder for more
 '''
-from tensorflow.python.ops import math_ops
 from keras.saving import register_keras_serializable
-from scipy.linalg import norm
-from scipy.signal import ShortTimeFFT as stft
-from numpy import log10
+from tensorflow.signal import stft, hann_window
+from tensorflow import norm
+from tensorflow.math import log, abs, reduce_mean, divide
 
+#@register_keras_serializable
 class WrightLoss:
     ''' Named after author of the paper. Not sure if standard name exists'''
     def __init__(self, ratio=0.5):
         self.ratio = ratio
+        self.eps = 0.00001
+
+    def get_config(self):
+        return {'ratio' : self.ratio}
+
+    def from_config(self, config):
+        self.ratio = config['ratio']
     
     def _DCLoss(self, y_true, y_pred):
-        dc_loss = math_ops.abs(math_ops.subtract(math_ops.mean(y_true, 0), math_ops.mean(y_pred, 0)))
-        dc_loss = math_ops.mean(dc_loss, axis=-1)
-        dc_energy = math_ops.mean(math_ops.abs(y_true), axis=-1) + 0.00001
-        dc_loss = math_ops.div(dc_loss, dc_energy)
+        dc_loss = abs(reduce_mean(y_true, axis=0) - reduce_mean(y_pred, axis=0))
+        dc_loss = reduce_mean(dc_loss, axis=-1)
+        dc_energy = reduce_mean(abs(y_true), axis=-1) + self.eps
+        dc_loss = divide(dc_loss, dc_energy)
         return dc_loss
     
     def _ESRLoss(self, y_true, y_pred):
-        esr_loss = math_ops.abs(math_ops.subtract(y_pred, y_true))
-        esr_loss = math_ops.mean(esr_loss, axis=-1)
-        esr_energy = math_ops.mean(math_ops.abs(y_true), axis=-1) + 0.00001
-        esr_loss = math_ops.div(esr_loss, esr_energy)
+        esr_loss = abs(y_pred - y_true)
+        esr_loss = reduce_mean(esr_loss, axis=-1)
+        esr_energy = reduce_mean(abs(y_true), axis=-1) + self.eps
+        esr_loss = divide(esr_loss, esr_energy)
         return esr_loss
 
     def __call__(self, y_true, y_pred):
-        # return value shape should be = (#examples, )
-        # that is, one value for each train example
         loss =    (self.ratio)*self._ESRLoss(y_true, y_pred) \
                 + (1-self.ratio)*self._DCLoss(y_true, y_pred)
         return loss
 
+#@register_keras_serializable
 class SteinmetzLoss:
     ''' Named after author of the paper. Not sure if standard name exists'''
     def __init__(self):
-        self.y_true_stft = None
+        self.eps = 0.00001
+
+    def _stft(self, x):
+        stft_ = stft(
+                    signals = x, 
+                    frame_length = 4096, # window len in no of timesteps
+                    frame_step = 512, # hops in no of timesteps
+                    fft_length=None, # frame length, if None, smallest power of 2 enclosing frame_length
+                    window_fn=hann_window, # window type
+                    pad_end=False,
+                    name=None
+                )
+        # Output is of shape (examples, frames, bins=fft_length//2+1)
+        stft_ = abs(stft_) + self.eps
+        return stft_
+
+    def get_config(self):
+        return {}
+
+    def from_config(self):
+        pass
 
     def _spectral_conv(self, y_true, y_pred):
-        numerator = norm(stft.stft(y_true) - stft.stft(y_pred), ord='fro', axis=-1, keepdims=True)
-        denominator = norm(stft.stft(y_true), ord='fro', axis=-1, keepdims=True)
-        return numerator/denominator
+        numerator = norm(self._stft(y_true) - self._stft(y_pred), axis=-1)
+        denominator = norm(self._stft(y_true), axis=-1) + self.eps
+        return numerator / denominator
 
     def _spectral_log_mag(self, y_true, y_pred):
-        numerator = norm(log10(stft.stft(y_true) - stft.stft(y_pred)), ord=1, axis=-1, keepdims=True)
-        return numerator / y_pred.shape[0]
-                                            
+        numerator = norm(log(self._stft(y_true)) - log(self._stft(y_pred)), axis=-1)
+        return numerator / numerator.shape[1]
+
     def _mae(self, y_true, y_pred):
-        return math_ops.mean(math_ops.square(y_true - y_pred))
+        loss = reduce_mean(abs(y_pred-y_true), axis=-1)
+        return loss
     
     def __call__(self, y_true, y_pred):
-        # If batch size is know, we can pe calculate stft.
-        # no need to calculate multiple times
-        #if not self.y_true_stft:
-        #   self.y_true_stft = stft.stft(y_true)
-
-        return self._spectral_conv(y_true, y_pred) + self._spectral_log_mag(y_true, y_pred) + self._mae(y_true, y_pred)
+        # shapes being passed was (examples, timesteps, 1). stft thus calculated on last axis ending in 0 frames
+        # Thus had to drop the final axis.
+        y_true, y_pred = y_true[..., 0], y_pred[..., 0]
+        return    reduce_mean(self._spectral_conv(y_true, y_pred) + self._spectral_log_mag(y_true, y_pred), axis=-1)\
+                + self._mae(y_true, y_pred)

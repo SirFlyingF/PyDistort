@@ -42,5 +42,5 @@ class ConditionlessTCN():
                 kernel_size=1
             )(prev_layer)
         
-        out = Add(tcn, skip)
+        out = Add()([tcn, skip])
         return out
