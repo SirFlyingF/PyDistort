@@ -15,9 +15,11 @@ PyDistort is currently under development
 **File Format** : Only supports 44.1kHz .wav files....at the moment
 
 ## Performance
+TCN with ESR+DC Loss - Wright et al
 ![Loss vs epoch - TCN with ESR+DC Loss][TCN_Wright_Loss]
 ![Test and Predicted waveform - TCN with ESR+DC Loss][TCN_Wright_Pred]
 
+TCN with Spectral Loss - Wright et al
 ![Loss vs epoch - TCN with Spectral Loss][TCN_Steinmetz_Loss]
 ![Test and Predicted waveform - TCN with Spectral Loss][TCN_Steinmetz_Pred]
 
